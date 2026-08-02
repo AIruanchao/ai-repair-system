@@ -1,0 +1,6 @@
+[run]
+source = .
+omit = test_*,server.py,cli.py
+
+[report]
+show_missing = true

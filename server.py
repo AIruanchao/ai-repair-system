@@ -33,6 +33,35 @@ app = FastAPI(
 )
 
 # CORS(允许Web Dashboard访问)
+
+
+# 速率限制(PIT-RATE-001: 简单内存计数,60s内最多20次)
+from collections import defaultdict
+from time import time as _time
+_rate_store = defaultdict(list)
+
+@app.middleware("http")
+async def rate_limit_middleware(request, call_next):
+    if request.url.path.startswith("/api/repair"):
+        client = request.client.host if request.client else "?"
+        now = _time()
+        _rate_store[client] = [t for t in _rate_store[client] if now - t < 60]
+        if len(_rate_store[client]) >= 20:
+            return JSONResponse(status_code=429, content={"detail": "Too many requests"})
+        _rate_store[client].append(now)
+    return await call_next(request)
+
+# API认证(PIT-AUTH-001)
+API_TOKEN = os.environ.get("AI_REPAIR_API_TOKEN", "")  # 空=不认证(本地工具)
+
+@app.middleware("http")
+async def auth_middleware(request, call_next):
+    if API_TOKEN and request.url.path.startswith("/api/"):
+        auth = request.headers.get("Authorization", "")
+        if auth != f"Bearer {API_TOKEN}":
+            return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
+    return await call_next(request)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # 本机工具,不限源
