@@ -21,6 +21,7 @@ from typing import Optional
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, FileResponse
 from pydantic import BaseModel
 
 # 导入核心引擎
@@ -119,6 +120,14 @@ class ConfigUpdate(BaseModel):
     limits: Optional[dict] = None
 
 # === API端点 ===
+
+@app.get("/", response_class=HTMLResponse)
+async def dashboard():
+    """Web Dashboard"""
+    dashboard_path = os.path.join(os.path.dirname(__file__), "dashboard.html")
+    if os.path.exists(dashboard_path):
+        return FileResponse(dashboard_path)
+    return HTMLResponse("<h1>dashboard.html not found</h1>")
 
 @app.get("/api/health")
 async def health():
@@ -336,6 +345,6 @@ def _execute_benchmark(task_id: str):
 if __name__ == "__main__":
     import uvicorn
     print(f"=== AI全能修复系统 v2.0.0 ===")
-    print(f"API: http://localhost:9100")
-    print(f"Docs: http://localhost:9100/docs")
+    print(f"Dashboard: http://localhost:9100")
+    print(f"API Docs: http://localhost:9100/docs")
     uvicorn.run(app, host="127.0.0.1", port=9100)

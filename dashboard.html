@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI全能修复系统 v2.0.0</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:-apple-system,BlinkMacSystemFont,sans-serif; background:#0f172a; color:#e2e8f0; }
+.layout { display:flex; min-height:100vh; }
+.sidebar { width:200px; background:#1e293b; padding:20px 0; flex-shrink:0; }
+.sidebar h2 { font-size:14px; color:#64748b; padding:0 20px 10px; text-transform:uppercase; }
+.nav-item { padding:10px 20px; cursor:pointer; color:#94a3b8; border-left:3px solid transparent; }
+.nav-item:hover { background:#334155; color:#e2e8f0; }
+.nav-item.active { background:#334155; color:#3b82f6; border-left-color:#3b82f6; }
+.main { flex:1; padding:30px; overflow-y:auto; }
+.header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+.header h1 { font-size:24px; }
+.badge { background:#1e293b; padding:4px 12px; border-radius:12px; font-size:12px; color:#3b82f6; }
+.badge .dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:#22c55e; margin-right:6px; }
+.card { background:#1e293b; border-radius:12px; padding:20px; margin-bottom:20px; }
+.card h3 { font-size:14px; color:#64748b; margin-bottom:15px; text-transform:uppercase; }
+.stat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:15px; }
+.stat { text-align:center; }
+.stat .num { font-size:28px; font-weight:700; }
+.stat .label { font-size:12px; color:#64748b; margin-top:4px; }
+.green { color:#22c55e; } .red { color:#ef4444; } .blue { color:#3b82f6; } .yellow { color:#eab308; }
+table { width:100%; border-collapse:collapse; }
+th,td { padding:8px 12px; text-align:left; border-bottom:1px solid #334155; font-size:13px; }
+th { color:#64748b; font-weight:500; }
+input,select,textarea { background:#0f172a; border:1px solid #334155; color:#e2e8f0; padding:8px 12px; border-radius:6px; width:100%; }
+textarea { min-height:80px; font-family:monospace; }
+button { background:#3b82f6; color:white; border:none; padding:10px 20px; border-radius:6px; cursor:pointer; font-size:14px; }
+button:hover { background:#2563eb; }
+button:disabled { opacity:0.5; }
+.form-row { margin-bottom:15px; }
+.form-row label { display:block; font-size:12px; color:#64748b; margin-bottom:5px; }
+.tab-content { display:none; }
+.tab-content.active { display:block; }
+canvas { max-width:100%; }
+.pitfall-item { padding:10px; border-bottom:1px solid #334155; }
+.pitfall-item .id { color:#3b82f6; font-family:monospace; font-size:12px; }
+.pitfall-item .title { font-size:14px; margin:4px 0; }
+.pitfall-item .cause { font-size:12px; color:#64748b; }
+#toast { position:fixed; bottom:20px; right:20px; padding:12px 20px; border-radius:8px; background:#22c55e; color:white; display:none; z-index:999; }
+</style>
+</head>
+<body>
+<div class="layout">
+<div class="sidebar">
+  <h2>AI修复系统</h2>
+  <div class="nav-item active" onclick="switchTab('dashboard')">📊 仪表盘</div>
+  <div class="nav-item" onclick="switchTab('repair')">🔧 触发修复</div>
+  <div class="nav-item" onclick="switchTab('history')">📋 修复历史</div>
+  <div class="nav-item" onclick="switchTab('knowledge')">🧠 知识库</div>
+  <div class="nav-item" onclick="switchTab('config')">⚙️ 配置</div>
+  <div class="nav-item" onclick="switchTab('test')">🧪 测试</div>
+</div>
+<div class="main">
+<div class="header">
+  <h1 id="pageTitle">仪表盘</h1>
+  <div class="badge" id="statusBadge"><span class="dot"></span>运行中 · <span id="pitfallCount">?</span> pitfall</div>
+</div>
+
+<!-- 仪表盘 -->
+<div class="tab-content active" id="tab-dashboard">
+  <div class="card">
+    <h3>核心指标</h3>
+    <div class="stat-grid" id="statGrid">加载中...</div>
+  </div>
+  <div class="card">
+    <h3>最近修复</h3>
+    <table><thead><tr><th>ID</th><th>时间</th><th>项目</th><th>状态</th><th>耗时</th></tr></thead>
+    <tbody id="recentTable"></tbody></table>
+  </div>
+</div>
+
+<!-- 触发修复 -->
+<div class="tab-content" id="tab-repair">
+  <div class="card">
+    <h3>触发AI修复</h3>
+    <div class="form-row"><label>目标项目</label><select id="repairProject"></select></div>
+    <div class="form-row"><label>根因描述</label><textarea id="repairCause" placeholder="例: products/route.ts的parseInt缺radix参数..."></textarea></div>
+    <div class="form-row"><label>模型</label><select id="repairModel"><option>glm-5.2</option><option>gpt-5.5</option><option>gpt-5.4</option></select></div>
+    <button onclick="submitRepair()">提交修复</button>
+  </div>
+  <div class="card" id="repairResult" style="display:none">
+    <h3>修复结果</h3><div id="repairResultContent"></div>
+  </div>
+</div>
+
+<!-- 修复历史 -->
+<div class="tab-content" id="tab-history">
+  <div class="card"><h3>全部修复记录</h3>
+  <table><thead><tr><th>ID</th><th>时间</th><th>项目</th><th>根因</th><th>状态</th><th>耗时</th></tr></thead>
+  <tbody id="historyTable"></tbody></table></div>
+</div>
+
+<!-- 知识库 -->
+<div class="tab-content" id="tab-knowledge">
+  <div class="card"><h3>Pitfall知识库 (<span id="pitfallTotal">?</span>条)</h3>
+  <input type="text" id="pitfallSearch" placeholder="搜索..." oninput="loadPitfalls()" style="margin-bottom:15px">
+  <div id="pitfallList"></div></div>
+</div>
+
+<!-- 配置 -->
+<div class="tab-content" id="tab-config">
+  <div class="card"><h3>项目配置</h3><pre id="configDisplay" style="font-size:13px;color:#94a3b8"></pre></div>
+</div>
+
+<!-- 测试 -->
+<div class="tab-content" id="tab-test">
+  <div class="card"><h3>Benchmark</h3>
+  <p style="color:#64748b;margin-bottom:15px">跑5题mini benchmark(L1单字符→L5跨文件)</p>
+  <button onclick="runBenchmark()" id="benchBtn">开始测试</button>
+  <div id="benchResult" style="margin-top:15px"></div></div>
+</div>
+
+</div></div>
+<div id="toast"></div>
+
+<script>
+const API = '';
+function toast(msg) { const t=document.getElementById('toast'); t.textContent=msg; t.style.display='block'; setTimeout(()=>t.style.display='none',3000); }
+function switchTab(name) {
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  event.target.classList.add('active');
+  const titles={'dashboard':'仪表盘','repair':'触发修复','history':'修复历史','knowledge':'知识库','config':'配置','test':'测试'};
+  document.getElementById('pageTitle').textContent=titles[name];
+  if(name==='dashboard') loadStats();
+  if(name==='history') loadHistory();
+  if(name==='knowledge') loadPitfalls();
+  if(name==='config') loadConfig();
+}
+
+async function loadHealth() {
+  try {
+    const r=await fetch(API+'/api/health'); const d=await r.json();
+    document.getElementById('pitfallCount').textContent=d.pitfall_count||'?';
+  } catch(e) { document.getElementById('statusBadge').innerHTML='<span class="dot" style="background:#ef4444"></span>离线'; }
+}
+
+async function loadStats() {
+  try {
+    const r=await fetch(API+'/api/stats'); const d=await r.json();
+    const rate=d.success_rate||'0%';
+    document.getElementById('statGrid').innerHTML=`
+      <div class="stat"><div class="num blue">${d.total_repairs||0}</div><div class="label">总修复</div></div>
+      <div class="stat"><div class="num green">${d.success||0}</div><div class="label">成功</div></div>
+      <div class="stat"><div class="num red">${d.failed||0}</div><div class="label">失败</div></div>
+      <div class="stat"><div class="num yellow">${rate}</div><div class="label">成功率</div></div>`;
+    const tbody=document.getElementById('recentTable');
+    tbody.innerHTML=(d.recent||[]).map(r=>`<tr><td>${r.id}</td><td>${(r.ts||'').slice(0,19)}</td><td>${(r.project||'').slice(0,20)}</td><td class="${r.status==='success'?'green':'red'}">${r.status}</td><td>${r.elapsed||'?'}s</td></tr>`).join('')||'<tr><td colspan=5 style="color:#64748b">暂无数据</td></tr>';
+    loadProjects(d);
+  } catch(e) { console.error(e); }
+}
+
+async function loadProjects(stats) {
+  try {
+    const r=await fetch(API+'/api/config'); const d=await r.json();
+    const sel=document.getElementById('repairProject');
+    sel.innerHTML=(d.projects||[]).map(p=>`<option value="${p.dir}">${p.name}</option>`).join('');
+  } catch(e) {}
+}
+
+async function submitRepair() {
+  const project=document.getElementById('repairProject').value;
+  const cause=document.getElementById('repairCause').value;
+  const model=document.getElementById('repairModel').value;
+  if(!cause.trim()) { toast('请输入根因描述'); return; }
+  toast('修复已提交,正在执行...');
+  try {
+    const r=await fetch(API+'/api/repair',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({project,root_cause:cause,model})});
+    const d=await r.json();
+    document.getElementById('repairResult').style.display='block';
+    document.getElementById('repairResultContent').innerHTML=`<p>任务ID: ${d.task_id}</p><p>状态: ${d.status}</p>`;
+    // 轮询结果
+    setTimeout(()=>pollRepair(d.task_id),5000);
+  } catch(e) { toast('提交失败: '+e.message); }
+}
+
+async function pollRepair(taskId) {
+  try {
+    const r=await fetch(API+'/api/repair/'+taskId); const d=await r.json();
+    const el=document.getElementById('repairResultContent');
+    if(d.status==='pending'||d.status==='analyzing') { el.innerHTML+=`<p>执行中...</p>`; setTimeout(()=>pollRepair(taskId),5000); return; }
+    const cls=d.status==='success'?'green':'red';
+    el.innerHTML=`<p>状态: <span class="${cls}">${d.status}</span></p><p>耗时: ${d.elapsed||'?'}s</p>${d.files_changed&&d.files_changed.length?`<p>改动: ${d.files_changed.join(', ')}</p>`:''}`;
+    toast(d.status==='success'?'✅ 修复成功!':'🔴 修复失败');
+  } catch(e) {}
+}
+
+async function loadHistory() {
+  try {
+    const r=await fetch(API+'/api/stats'); const d=await r.json();
+    document.getElementById('historyTable').innerHTML=(d.recent||[]).map(r=>
+      `<tr><td>${r.id}</td><td>${(r.ts||'').slice(0,19)}</td><td>${(r.project||'').slice(0,25)}</td><td>—</td><td class="${r.status==='success'?'green':'red'}">${r.status}</td><td>${r.elapsed||'?'}s</td></tr>`
+    ).join('')||'<tr><td colspan=6 style="color:#64748b">暂无数据</td></tr>';
+  } catch(e) {}
+}
+
+async function loadPitfalls() {
+  try {
+    const q=document.getElementById('pitfallSearch').value;
+    const r=await fetch(API+'/api/pitfalls?limit=50&quality=good'); const d=await r.json();
+    document.getElementById('pitfallTotal').textContent=d.total;
+    let items=d.pitfalls||[];
+    if(q) items=items.filter(p=>JSON.stringify(p).toLowerCase().includes(q.toLowerCase()));
+    document.getElementById('pitfallList').innerHTML=items.map(p=>
+      `<div class="pitfall-item"><span class="id">${p.id||'?'}</span><div class="title">${p.title||'?'}</div><div class="cause">根因: ${p.root_cause||'?'} · ${p.ts?p.ts.slice(0,10):''}</div></div>`
+    ).join('')||'<div style="color:#64748b">无数据</div>';
+  } catch(e) {}
+}
+
+async function loadConfig() {
+  try {
+    const r=await fetch(API+'/api/config'); const d=await r.json();
+    document.getElementById('configDisplay').textContent=JSON.stringify(d,null,2);
+  } catch(e) {}
+}
+
+async function runBenchmark() {
+  const btn=document.getElementById('benchBtn'); btn.disabled=true; btn.textContent='测试中...';
+  document.getElementById('benchResult').innerHTML='<p style="color:#64748b">正在跑5题benchmark(约2分钟)...</p>';
+  try {
+    const r=await fetch(API+'/api/benchmark',{method:'POST'}); const d=await r.json();
+    document.getElementById('benchResult').innerHTML='<p>✅ benchmark已提交(后台执行)</p>';
+    toast('Benchmark已启动');
+  } catch(e) { document.getElementById('benchResult').innerHTML='<p class="red">失败: '+e.message+'</p>'; }
+  btn.disabled=false; btn.textContent='开始测试';
+}
+
+// 初始化
+loadHealth();
+loadStats();
+setInterval(loadHealth, 30000); // 30s轮询健康
+</script>
+</body>
+</html>
