@@ -1,0 +1,16 @@
+version: "3.8"
+services:
+  ai-repair:
+    build: .
+    ports:
+      - "9100:9100"
+    volumes:
+      - repair-data:/app/data
+      - pitfall-lib:/root/.hermes/profiles/dachui80/skills/core/ceiling-gate/scripts
+    environment:
+      - NEWAPI_KEY=${NEWAPI_KEY}
+    restart: unless-stopped
+
+volumes:
+  repair-data:
+  pitfall-lib:
