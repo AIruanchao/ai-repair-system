@@ -281,7 +281,7 @@ def _count_pitfalls():
     return len(open(pitfall_path).readlines())
 
 def _execute_repair(task_id: str, project: str, root_cause: str, model: str):
-    """执行修复(后台)"""
+    """执行修复(后台) — 自动选择OpenHands(本地)或ai_auto_repair(远程)"""
     import subprocess
     env = os.environ.copy()
     # 读API key
@@ -293,18 +293,30 @@ def _execute_repair(task_id: str, project: str, root_cause: str, model: str):
                 break
     
     t0 = time.time()
-    r = subprocess.run(
-        ["python3", os.path.expanduser("~/.hermes/scripts/ai_auto_repair.py"),
-         "--root-cause", root_cause, "--project", project, "--model", model],
-        capture_output=True, text=True, timeout=300, env=env)
-    elapsed = round(time.time() - t0, 1)
     
-    success = "成功: True" in r.stdout
+    # PIT-ENGINE-001: 自动选择修复引擎
+    is_remote = ":" in project and not project.startswith("/")
+    
+    if not is_remote and os.path.exists("/Users/maccc/.hermes/openhands-venv/bin/python3"):
+        # 本地项目 → OpenHands Agent(CodeAct模式,更强)
+        print(f"[repair] 使用OpenHands Agent(CodeAct) for {project}")
+        r = _execute_openhands(task_id, project, root_cause, model, env)
+    else:
+        # 远程项目或OpenHands不可用 → ai_auto_repair
+        print(f"[repair] 使用ai_auto_repair for {project}")
+        r = subprocess.run(
+            ["python3", os.path.expanduser("~/.hermes/scripts/ai_auto_repair.py"),
+             "--root-cause", root_cause, "--project", project, "--model", model],
+            capture_output=True, text=True, timeout=300, env=env)
+        r.stdout = r.stdout  # 保持格式一致
+    
+    elapsed = round(time.time() - t0, 1)
+    success = "RESULT: success" in r.stdout or "成功: True" in r.stdout
     
     # 解析改了哪些文件
     files = []
     for line in r.stdout.split('\n'):
-        if '文件:' in line or 'file:' in line.lower():
+        if 'file:' in line.lower() or '文件:' in line or 'changed' in line.lower():
             files.append(line.strip()[:100])
     
     # 更新DB
@@ -312,12 +324,60 @@ def _execute_repair(task_id: str, project: str, root_cause: str, model: str):
     c = conn.cursor()
     c.execute("UPDATE repairs SET status=?, result=?, elapsed=?, files_changed=? WHERE id=?",
               ("success" if success else "failed",
-               json.dumps({"stdout": r.stdout[-500:], "stderr": r.stderr[-200:]}),
+               json.dumps({"stdout": r.stdout[-500:], "engine": "openhands" if not is_remote else "ai_auto_repair"}),
                elapsed,
                json.dumps(files),
                task_id))
     conn.commit()
     conn.close()
+
+def _execute_openhands(task_id, project, root_cause, model, env):
+    """用OpenHands Agent执行修复(CodeAct模式)"""
+    import tempfile, subprocess
+    script = f'''
+import os, sys
+sys.path.insert(0, "/Users/maccc/.hermes/openhands-venv/lib/python3.12/site-packages")
+from openhands.sdk import LLM, Agent, Conversation, Tool
+from openhands.tools.file_editor import FileEditorTool
+from openhands.tools.terminal import TerminalTool
+from pydantic import SecretStr
+
+key = os.environ.get("NEWAPI_KEY", "")
+if not key:
+    for line in open(os.path.expanduser("~/.hermes/profiles/dachui80/.env")):
+        if line.startswith("NEWAPI_TOKEN="):
+            key = line.split("=",1)[1].strip()
+
+llm = LLM(model="openai/{model}", base_url="https://ai.nenie.vip/v1",
+          api_key=SecretStr(key), api_mode="chat")
+agent = Agent(llm=llm, tools=[Tool(name=TerminalTool.name), Tool(name=FileEditorTool.name)])
+conv = Conversation(agent=agent, workspace="{project}")
+conv.send_message("""Fix this bug: {root_cause}
+
+Rules:
+1. Use terminal to grep/read files and find the bug
+2. Use file_editor to make the fix
+3. Run python3 -m py_compile to verify syntax after fix
+4. Do not git commit
+5. Report what you fixed""")
+try:
+    conv.run()
+    print("RESULT: success")
+except Exception as e:
+    print(f"RESULT: error - {{str(e)[:100]}}")
+'''
+    fd, spath = tempfile.mkstemp(suffix='.py')
+    os.close(fd)
+    with open(spath, 'w') as f:
+        f.write(script)
+    
+    try:
+        r = subprocess.run(
+            ["/Users/maccc/.hermes/openhands-venv/bin/python3", spath],
+            capture_output=True, text=True, timeout=300, env=env, cwd=project)
+        return r
+    finally:
+        os.unlink(spath)
 
 def _execute_benchmark(task_id: str):
     """执行benchmark(后台)"""
