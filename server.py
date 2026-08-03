@@ -114,6 +114,7 @@ class RepairRequest(BaseModel):
     root_cause: str  # 根因描述
     model: str = "glm-5.2"
     dry_run: bool = False
+    mode: str = "auto"  # auto|openhands|patch|recursive
 
 class ConfigUpdate(BaseModel):
     projects: Optional[list] = None
