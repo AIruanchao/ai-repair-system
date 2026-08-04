@@ -56,6 +56,16 @@ PYTHON_GATES = ["sql_insert_check.py","template_consistency_check.py","onclick_f
     "ops_trace_id_check.py","ops_log_check.py","ops_alert_check.py"]
 TS_GATES = ["lint_check.py","build_check.py","security_scan.py","tech_debt_check.py"]
 
+NO_PROJECT_GATES = {
+    "security_penetration_check.py", "security_auth_bypass_check.py",
+    "security_data_leak_check.py", "compat_browser_check.py", "compat_backward_check.py",
+    "perf_p95_check.py", "perf_concurrent_check.py", "perf_large_data_check.py",
+    "perf_memory_check.py", "reliability_recovery_check.py", "reliability_backup_check.py",
+    "reliability_chaos_check.py", "reliability_circuit_breaker_check.py",
+    "runtime_api_check.py", "usability_loading_check.py", "usability_error_msg_check.py",
+    "ops_trace_id_check.py", "ops_log_check.py", "ops_alert_check.py",
+}
+
 def run_gates(project_path, lang="python"):
     gates = PYTHON_GATES if lang == "python" else TS_GATES
     results = []
@@ -64,8 +74,12 @@ def run_gates(project_path, lang="python"):
         if not path.exists():
             continue
         try:
-            r = subprocess.run(["python3", str(path), project_path],
-                              capture_output=True, text=True, timeout=60)
+            if g in NO_PROJECT_GATES:
+                r = subprocess.run(["python3", str(path)],
+                                  capture_output=True, text=True, timeout=60)
+            else:
+                r = subprocess.run(["python3", str(path), project_path],
+                                  capture_output=True, text=True, timeout=60)
             passed = r.returncode == 0
             last = [l for l in r.stdout.strip().split("\n") if l.strip()][-1] if r.stdout.strip() else ""
             results.append({"gate": g.replace(".py",""), "passed": passed, "detail": last[:60]})
