@@ -55,6 +55,7 @@ canvas { max-width:100%; }
   <div class="nav-item" onclick="switchTab('knowledge')">🧠 知识库</div>
   <div class="nav-item" onclick="switchTab('config')">⚙️ 配置</div>
   <div class="nav-item" onclick="switchTab('test')">🧪 测试</div>
+  <div class="nav-item" onclick="switchTab('review')">🔍 审查</div>
 </div>
 <div class="main">
 <div class="header">
@@ -106,6 +107,22 @@ canvas { max-width:100%; }
 <!-- 配置 -->
 <div class="tab-content" id="tab-config">
   <div class="card"><h3>项目配置</h3><pre id="configDisplay" style="font-size:13px;color:#94a3b8"></pre></div>
+</div>
+
+<!-- 审查 -->
+<div class="tab-content" id="tab-review">
+  <div class="card">
+    <h3>代码审查Agent</h3>
+    <div class="form-row"><label>选择项目</label>
+      <select id="reviewProject">
+        <option value="ht">HT商务系统</option>
+        <option value="ledger">台账系统</option>
+        <option value="erp">七色米ERP</option>
+      </select>
+    </div>
+    <button onclick="runReview()">🔍 开始审查</button>
+    <div id="reviewResult" style="margin-top:15px"></div>
+  </div>
 </div>
 
 <!-- 测试 -->
@@ -231,6 +248,34 @@ async function runBenchmark() {
     toast('Benchmark已启动');
   } catch(e) { document.getElementById('benchResult').innerHTML='<p class="red">失败: '+e.message+'</p>'; }
   btn.disabled=false; btn.textContent='开始测试';
+}
+
+// 审查
+async function runReview() {
+  const proj = document.getElementById('reviewProject').value;
+  const el = document.getElementById('reviewResult');
+  el.innerHTML = '<p style="color:#64748b">审查中...(约2-3分钟)</p>';
+  try {
+    const r = await fetch('http://localhost:9201/api/review', {method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({project: proj})});
+    const d = await r.json();
+    const s = d.summary || {};
+    let html = `<div style="margin-bottom:10px">
+      <strong>verdict: ${s.verdict||'?'}</strong> | 
+      findings: ${s.total||0} (P0=${s.P0||0} P1=${s.P1||0}) | 
+      gates: ${s.gates||'?'}</div>`;
+    const findings = d.findings || [];
+    if (findings.length > 0) {
+      html += '<table><thead><tr><th>级别</th><th>类别</th><th>描述</th></tr></thead><tbody>';
+      findings.forEach(f => {
+        html += `<tr><td class="${f.severity==='P0'?'red':f.severity==='P1'?'yellow':'blue'}">${f.severity||'?'}</td>
+          <td>${f.category||'?'}</td><td>${(f.rationale||'').substring(0,60)}</td></tr>`;
+      });
+      html += '</tbody></table>';
+    }
+    el.innerHTML = html;
+  } catch(e) { el.innerHTML = '<p class="red">审查失败: '+e.message+'</p>'; }
 }
 
 // 初始化
