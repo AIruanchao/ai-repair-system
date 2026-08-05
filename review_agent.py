@@ -178,7 +178,7 @@ def trigger_repair(project_path, findings):
 
 class ReviewRequest(BaseModel):
     project: str = "ht"
-    trigger_repair: bool = False
+    trigger_repair: bool = True  # 默认触发修复(发现P0/P1就修)
 
 @app.get("/api/health")
 async def health():
