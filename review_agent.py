@@ -174,7 +174,9 @@ def trigger_repair(project_path, findings):
                 req = urllib.request.Request("http://localhost:9100/api/repair",
                     data=payload, headers={"Content-Type":"application/json"}, method="POST")
                 urllib.request.urlopen(req, timeout=10)
-            except: pass
+            except Exception as e:
+                # PIT-SILENT-001: 不静默pass,记录失败
+                print(f"[trigger_repair] FAILED: {str(e)[:80]}")
 
 class ReviewRequest(BaseModel):
     project: str = "ht"
