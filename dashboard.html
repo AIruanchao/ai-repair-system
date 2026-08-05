@@ -121,6 +121,7 @@ canvas { max-width:100%; }
       </select>
     </div>
     <button onclick="runReview()">🔍 开始审查</button>
+    <button onclick="runReviewAndFix()">🔧 审查+修复</button>
     <div id="reviewResult" style="margin-top:15px"></div>
   </div>
 </div>
@@ -276,6 +277,27 @@ async function runReview() {
     }
     el.innerHTML = html;
   } catch(e) { el.innerHTML = '<p class="red">审查失败: '+e.message+'</p>'; }
+}
+
+// 审查+修复
+async function runReviewAndFix() {
+  const proj = document.getElementById('reviewProject').value;
+  const el = document.getElementById('reviewResult');
+  el.innerHTML = '<p style="color:#64748b">审查+修复中...(可能5-10分钟)</p>';
+  try {
+    const r = await fetch('http://localhost:9201/api/review', {method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({project: proj, trigger_repair: true})});
+    const d = await r.json();
+    const s = d.summary || {};
+    let html = `<div style="margin-bottom:10px">
+      <strong>verdict: ${s.verdict||'?'}</strong> | 
+      findings: ${s.total||0} | gates: ${s.gates||'?'}</div>`;
+    if (s.P0 > 0 || s.P1 > 0) {
+      html += '<p class="red">已自动触发修复系统(AI修复)</p>';
+    }
+    el.innerHTML = html;
+  } catch(e) { el.innerHTML = '<p class="red">失败: '+e.message+'</p>'; }
 }
 
 // 初始化

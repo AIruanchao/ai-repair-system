@@ -35,7 +35,7 @@ PITFALL_JSONL = GATE_DIR / "pitfalls.jsonl"
 
 PROJECTS = {
     "ht": {"path": "/Users/maccc/projects/business-document-generator", "lang": "python"},
-    "erp": {"path": "cloud4:/opt/erp-project", "lang": "typescript"},
+    "erp": {"path": "macmini:/Users/mac/erp-project", "lang": "typescript"},
     "ledger": {"path": "/Users/maccc/projects/ledger-quality-system", "lang": "python"},
 }
 
