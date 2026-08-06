@@ -397,8 +397,16 @@ def _execute_benchmark(task_id: str):
     conn.close()
 
 if __name__ == "__main__":
+    # 集成deploy_monitor路由(部署+回滚+监控)
+    try:
+        from deploy_monitor import router as deploy_router
+        app.include_router(deploy_router)
+        print("✅ deploy_monitor路由已集成")
+    except Exception as e:
+        print(f"⚠️ deploy_monitor集成失败: {e}")
+    
     import uvicorn
-    print(f"=== AI全能修复系统 v2.0.0 ===")
+    print(f"=== AI全能修复系统 v6.3.0 ===")
     print(f"Dashboard: http://localhost:9100")
     print(f"API Docs: http://localhost:9100/docs")
     uvicorn.run(app, host="127.0.0.1", port=9100)
