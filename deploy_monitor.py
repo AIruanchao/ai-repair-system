@@ -89,6 +89,18 @@ MONITOR_HISTORY: Dict[str, deque] = {}  # {project: [(ts, p95, err, qps), ...]}
 
 # === 工具函数 ===
 
+import shlex
+import threading
+
+def _validate_name(name):
+    """CRITICAL-1 fix: 防命令注入,只允许[a-zA-Z0-9._-]"""
+    import re
+    if not re.match(r'^[a-zA-Z0-9._-]+$', str(name)):
+        raise ValueError(f"Invalid name for shell: {name!r}")
+
+_deploy_locks = {}
+
+
 def _load_newapi_token() -> str:
     """从dachui80 profile env读NEWAPI_TOKEN"""
     if not os.path.exists(DACHUI_ENV_PATH):
@@ -250,6 +262,7 @@ def _git_rollback(project: str, tag: str) -> Dict[str, Any]:
 # === 核心功能函数 ===
 
 def deploy(project: str, tag: Optional[str] = None) -> Dict[str, Any]:
+    _validate_name(project_name)
     """部署:打tag→SSH部署→健康检查3次→失败自动回滚→飞书通知
 
     Returns: {ok, tag, steps: [...], error?}
