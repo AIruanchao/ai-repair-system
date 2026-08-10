@@ -21,7 +21,7 @@ from typing import Optional
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from pydantic import BaseModel
 
 # 导入核心引擎
@@ -102,6 +102,23 @@ init_db()
 
 # 配置
 CONFIG_PATH = os.path.expanduser("~/.hermes/scripts/ai-repair-config.json")
+
+MIN_SUBPROCESS_TIMEOUT = 300
+
+def _env_int_at_least(name: str, default: int, minimum: int) -> int:
+    """读取整数环境变量，并强制保底，避免误配过短超时。"""
+    raw_value = os.environ.get(name, str(default))
+    try:
+        value = int(raw_value)
+    except (TypeError, ValueError):
+        value = default
+    return max(value, minimum)
+
+SUBPROCESS_TIMEOUT = _env_int_at_least(
+    "AI_REPAIR_SUBPROCESS_TIMEOUT", MIN_SUBPROCESS_TIMEOUT, MIN_SUBPROCESS_TIMEOUT
+)
+BENCHMARK_TIMEOUT = _env_int_at_least("AI_REPAIR_BENCHMARK_TIMEOUT", 600, MIN_SUBPROCESS_TIMEOUT)
+
 def load_config():
     if os.path.exists(CONFIG_PATH):
         return json.loads(open(CONFIG_PATH).read())
@@ -211,6 +228,10 @@ async def get_pitfalls(limit: int = 20, quality: str = "all"):
 @app.post("/api/repair")
 async def trigger_repair(req: RepairRequest, bg: BackgroundTasks):
     """触发修复(异步)"""
+    REPAIR_ENABLED = os.environ.get("AI_REPAIR_ENABLED", "1") == "1"
+    if not REPAIR_ENABLED:
+        return {"status": "skipped", "reason": "ai_repair_disabled_by_env"}
+
     config = load_config()
     project = req.project or config["projects"][0]["dir"] if config.get("projects") else None
     if not project:
@@ -308,7 +329,7 @@ def _execute_repair(task_id: str, project: str, root_cause: str, model: str):
         r = subprocess.run(
             ["python3", os.path.expanduser("~/.hermes/scripts/ai_auto_repair.py"),
              "--root-cause", root_cause, "--project", project, "--model", model],
-            capture_output=True, text=True, timeout=300, env=env)
+            capture_output=True, text=True, timeout=SUBPROCESS_TIMEOUT, env=env)
         r.stdout = r.stdout  # 保持格式一致
     
     elapsed = round(time.time() - t0, 1)
@@ -368,7 +389,7 @@ except Exception as e:
     try:
         r = subprocess.run(
             ["/Users/maccc/.hermes/openhands-venv/bin/python3", spath],
-            capture_output=True, text=True, timeout=300, env=env, cwd=project)
+            capture_output=True, text=True, timeout=SUBPROCESS_TIMEOUT, env=env, cwd=project)
         return r
     finally:
         os.unlink(spath)
@@ -386,7 +407,7 @@ def _execute_benchmark(task_id: str):
     
     r = subprocess.run(
         ["python3", os.path.expanduser("~/.hermes/scripts/mini_benchmark.py")],
-        capture_output=True, text=True, timeout=600, env=env)
+        capture_output=True, text=True, timeout=BENCHMARK_TIMEOUT, env=env)
     
     # 写结果到stats
     conn = sqlite3.connect(DB_PATH)
