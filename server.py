@@ -374,7 +374,7 @@ llm = LLM(model="openai/{model}", base_url="https://ai.nenie.vip/v1",
           api_key=SecretStr(key), api_mode="chat")
 agent = Agent(llm=llm, tools=[Tool(name=TerminalTool.name), Tool(name=FileEditorTool.name)])
 conv = Conversation(agent=agent, workspace="{project}")
-conv.send_message("Fix this bug: " + root_cause + ". Read the file, understand the code, then fix it. After fixing, run python3 -m py_compile to verify syntax. If a test exists, run it. If it fails, read the error and try a different approach. Max 5 rounds. Do not git commit.")
+conv.send_message("Fix this bug: " + "{root_cause}" + ". Read the file, understand the code, then fix it. After fixing, run python3 -m py_compile to verify syntax. If a test exists, run it. If it fails, read the error and try a different approach. Max 5 rounds. Do not git commit.")
 try:
     conv.run()
     print("RESULT: success")
