@@ -185,3 +185,120 @@ def test_ai_auto_repair_call_llm_mocked():
         result = aar.call_llm("system prompt", "user prompt", timeout=5)
         assert isinstance(result, str)
         assert result == "fixed"
+
+
+# ===========================================================================
+# Test 12 — openhands_bridge_v2
+# ===========================================================================
+
+def test_openhands_bridge_v2_import():
+    """T12: openhands_bridge_v2 imports and exposes run_agent_round callable."""
+    import openhands_bridge_v2 as ob
+    assert hasattr(ob, 'run_agent_round')
+    assert callable(ob.run_agent_round)
+
+
+# ===========================================================================
+# Test 13 — llm_pitfall_analyzer
+# ===========================================================================
+
+def test_llm_pitfall_analyzer_is_meaningful_pitfall():
+    """T13: is_meaningful_pitfall returns False for placeholder entries."""
+    import llm_pitfall_analyzer as lpa
+    bad_entry = {"root_cause": "unknown", "title": "?", "detail": "N/A"}
+    assert lpa.is_meaningful_pitfall(bad_entry) is False
+    good_entry = {"id": "PIT-001", "root_cause": "import_missing", "title": "缺少依赖包",
+                  "detail": "requests未安装", "fix_hint": "pip install requests",
+                  "severity": "P1"}
+    assert lpa.is_meaningful_pitfall(good_entry) is True
+
+
+# ===========================================================================
+# Test 14 — deploy_monitor DEPLOY_CONFIG
+# ===========================================================================
+
+def test_deploy_monitor_config_has_ht_key():
+    """T14: DEPLOY_CONFIG contains the 'ht' project entry."""
+    import ai_repair.deploy_monitor as dm
+    assert hasattr(dm, 'DEPLOY_CONFIG')
+    assert 'ht' in dm.DEPLOY_CONFIG
+    ht = dm.DEPLOY_CONFIG['ht']
+    assert 'health_url' in ht
+
+
+# ===========================================================================
+# Test 15 — deploy_monitor _health_check
+# ===========================================================================
+
+def test_deploy_monitor_health_check_mocked():
+    """T15: _health_check returns bool when HTTP call is mocked."""
+    import ai_repair.deploy_monitor as dm
+
+    mock_resp = MagicMock()
+    mock_resp.status = 200
+    mock_resp.__enter__ = lambda s: s
+    mock_resp.__exit__ = MagicMock(return_value=False)
+
+    with patch('urllib.request.urlopen', return_value=mock_resp):
+        result = dm._health_check('ht', retries=1)
+        assert isinstance(result, bool)
+
+
+# ===========================================================================
+# Test 16 — review_agent import
+# ===========================================================================
+
+def test_review_agent_import():
+    """T16: review_agent module imports without error."""
+    import ai_repair.review_agent as ra
+    assert ra is not None
+
+
+# ===========================================================================
+# Test 17 — unattended_repair_loop JSON parsing
+# ===========================================================================
+
+def test_unattended_repair_loop_load_known_pitfalls_for_prompt():
+    """T17: load_known_pitfalls_for_prompt returns a string (no LLM call)."""
+    import unattended_repair_loop as url
+    result = url.load_known_pitfalls_for_prompt(n=3)
+    assert isinstance(result, str)
+
+
+# ===========================================================================
+# Test 18 — ai_repair_runner import
+# ===========================================================================
+
+def test_ai_repair_runner_import():
+    """T18: ai_repair_runner imports without error."""
+    import ai_repair_runner as arr
+    assert arr is not None
+
+
+# ===========================================================================
+# Test 19 — auto-pitfall-evolution (hyphenated, importlib)
+# ===========================================================================
+
+def test_auto_pitfall_evolution_import():
+    """T19: auto-pitfall-evolution.py loads via importlib despite hyphenated name."""
+    import importlib.util
+    script = '/opt/hermes/agents/dachui80/scripts/auto-pitfall-evolution.py'
+    spec = importlib.util.spec_from_file_location('auto_pitfall_evolution', script)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    assert mod is not None
+
+
+# ===========================================================================
+# Test 20 — auto-retrospect (hyphenated, importlib)
+# ===========================================================================
+
+def test_auto_retrospect_import():
+    """T20: auto-retrospect.py loads via importlib despite hyphenated name."""
+    import importlib.util
+    script = '/opt/hermes/agents/dachui80/scripts/auto-retrospect.py'
+    spec = importlib.util.spec_from_file_location('auto_retrospect', script)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    assert mod is not None
+
