@@ -172,8 +172,6 @@ class TestPitfallVoteDict:
                 yield
         return combined()
 
-    @pytest.mark.skip(reason="vote()返回string不是dict,API格式不同")
-    @pytest.mark.skip(reason="vote返回格式不同")
     def test_10_vote_returns_dict_with_verdict_reason(self):
         """T10: vote() returns dict containing 'root_cause', 'title', 'detail'."""
         import multi_model_pitfall_vote as mpv
@@ -186,7 +184,6 @@ class TestPitfallVoteDict:
         assert "detail" in result
         assert result["root_cause"] == "import_missing"
 
-    @pytest.mark.skip(reason="vote返回格式不同")
     def test_11_vote_confidence_score_calculated_correctly(self):
         """T11: 3/4 models agree on 'import_missing' → confidence='high'."""
         import multi_model_pitfall_vote as mpv
@@ -202,7 +199,6 @@ class TestPitfallVoteDict:
         assert result["root_cause"] == "import_missing"
         assert result["vote_count"].startswith("3")
 
-    @pytest.mark.skip(reason="vote返回格式不同")
     def test_12_vote_model_names_in_per_model(self):
         """T12: vote() result contains per_model list with label/cause per model."""
         import multi_model_pitfall_vote as mpv
